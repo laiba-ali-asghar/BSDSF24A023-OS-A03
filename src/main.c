@@ -5,6 +5,25 @@ int main() {
     char** arglist;
 
     while ((cmdline = read_cmd(PROMPT, stdin)) != NULL) {
+        
+        // Feature-3: handle !n (re-run command number n)
+        if (cmdline[0] == '!') {
+            int n = atoi(cmdline + 1);       // the number after '!'
+            char* old = get_history(n);
+            if (old == NULL) {
+                printf("No such command in history: %s\n", cmdline);
+                free(cmdline);
+                continue;
+            }
+            free(cmdline);
+            cmdline = strdup(old);           // replace !n with the real command
+            printf("%s\n", cmdline);         // show what is being run
+        }
+
+        // Feature-3: save the command in history (skip empty lines)
+        if (cmdline[0] != '\0') {
+            add_to_history(cmdline);
+        }
         if ((arglist = tokenize(cmdline)) != NULL) {
                        if (handle_builtin(arglist) == 0) {
                 execute(arglist);

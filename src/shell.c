@@ -88,6 +88,12 @@ int handle_builtin(char** arglist) {
         printf("  exit       Exit the shell\n");
         printf("  help       Show this help message\n");
         printf("  jobs       Show background jobs\n");
+                printf("  history    Show command history\n");
+        return 1;
+    }
+
+        if (strcmp(cmd, "history") == 0) {
+        print_history();
         return 1;
     }
 
@@ -97,4 +103,34 @@ int handle_builtin(char** arglist) {
     }
 
     return 0;   // not a built-in
+}
+// Feature-3: Command history
+char* history[HISTORY_SIZE];   // stores the last 20 commands
+int history_count = 0;         // how many commands are stored right now
+
+void add_to_history(char* cmdline) {
+    if (history_count == HISTORY_SIZE) {
+        // History is full: delete the oldest one and shift the rest up
+        free(history[0]);
+        for (int i = 1; i < HISTORY_SIZE; i++) {
+            history[i - 1] = history[i];
+        }
+        history_count--;
+    }
+    history[history_count] = strdup(cmdline);   // save a copy
+    history_count++;
+}
+
+void print_history() {
+    for (int i = 0; i < history_count; i++) {
+        printf("%d  %s\n", i + 1, history[i]);
+    }
+}
+
+// Returns the n-th command (n starts from 1), or NULL if n is invalid
+char* get_history(int n) {
+    if (n < 1 || n > history_count) {
+        return NULL;
+    }
+    return history[n - 1];
 }
