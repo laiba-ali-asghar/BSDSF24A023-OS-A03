@@ -4,8 +4,9 @@ int main() {
     char* cmdline;
     char** arglist;
 
-    while ((cmdline = read_cmd(PROMPT, stdin)) != NULL) {
-        
+    init_readline();   // Feature-4: set up Tab completion
+
+    while ((cmdline = readline(PROMPT)) != NULL) {        
         // Feature-3: handle !n (re-run command number n)
         if (cmdline[0] == '!') {
             int n = atoi(cmdline + 1);       // the number after '!'
@@ -22,7 +23,8 @@ int main() {
 
         // Feature-3: save the command in history (skip empty lines)
         if (cmdline[0] != '\0') {
-            add_to_history(cmdline);
+                        add_to_history(cmdline);   // our own list (for history and !n)
+            add_history(cmdline);      // readline's list (for Up/Down arrows)
         }
         if ((arglist = tokenize(cmdline)) != NULL) {
                        if (handle_builtin(arglist) == 0) {

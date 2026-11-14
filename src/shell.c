@@ -134,3 +134,71 @@ char* get_history(int n) {
     }
     return history[n - 1];
 }
+
+// Feature-4: Tab completion with readline
+char** command_list = NULL;   // names of all commands we can complete
+int command_count = 0;
+
+void add_command_name(char* name) {
+    command_list = realloc(command_list, sizeof(char*) * (command_count + 1));
+    command_list[command_count] = strdup(name);
+    command_count++;
+}
+
+// Fill command_list with our built-ins + every program in the PATH folders
+void build_command_list() {
+    char* builtins[] = {"cd", "exit", "help", "jobs", "history"};
+    for (int i = 0; i < 5; i++) {
+        add_command_name(builtins[i]);
+    }
+
+    char* path = getenv("PATH");
+    if (path == NULL) return;
+    char* path_copy = strdup(path);           // strtok changes the string, so use a copy
+    char* folder = strtok(path_copy, ":");     // PATH folders are separated by ':'
+    while (folder != NULL) {
+        DIR* dp = opendir(folder);
+        if (dp != NULL) {
+            struct dirent* entry;
+            while ((entry = readdir(dp)) != NULL) {
+                if (entry->d_name[0] != '.') {
+                    add_command_name(entry->d_name);
+                }
+            }
+            closedir(dp);
+        }
+        folder = strtok(NULL, ":");
+    }
+    free(path_copy);
+}
+
+// readline calls this again and again; each call returns the next match
+char* command_generator(const char* text, int state) {
+    static int index, len;
+    if (state == 0) {          // first call for this Tab press: start from the beginning
+        index = 0;
+        len = strlen(text);
+    }
+    while (index < command_count) {
+        char* name = command_list[index];
+        index++;
+        if (strncmp(name, text, len) == 0) {
+            return strdup(name);   // readline frees it later
+        }
+    }
+    return NULL;               // no more matches
+}
+
+// Called by readline when the user presses Tab
+char** myshell_completion(const char* text, int start, int end) {
+    if (start == 0) {
+        // first word on the line -> complete a command name
+        return rl_completion_matches(text, command_generator);
+    }
+    return NULL;   // other words -> readline's default: complete file names
+}
+
+void init_readline() {
+    build_command_list();
+    rl_attempted_completion_function = myshell_completion;
+}
