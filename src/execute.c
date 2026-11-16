@@ -1,5 +1,62 @@
 #include "shell.h"
 
+// Feature-6: list of background jobs
+int job_pids[MAX_JOBS];          // PID of each background job
+char* job_cmds[MAX_JOBS];        // command text of each job
+int job_count = 0;
+
+void add_job(int pid, char** cmd) {
+    if (job_count == MAX_JOBS) {
+        printf("Too many background jobs\n");
+        return;
+    }
+    // join the words back into one string, e.g. "sleep 10"
+    char text[MAX_LEN] = "";
+    for (int i = 0; cmd[i] != NULL; i++) {
+        strcat(text, cmd[i]);
+        strcat(text, " ");
+    }
+    job_pids[job_count] = pid;
+    job_cmds[job_count] = strdup(text);
+    job_count++;
+    printf("[%d] %d\n", job_count, pid);   // like bash: [job number] PID
+}
+
+void remove_job(int pid) {
+    for (int i = 0; i < job_count; i++) {
+        if (job_pids[i] == pid) {
+            printf("[Done] %s\n", job_cmds[i]);
+            free(job_cmds[i]);
+            // shift the rest of the list up by one
+            for (int j = i + 1; j < job_count; j++) {
+                job_pids[j - 1] = job_pids[j];
+                job_cmds[j - 1] = job_cmds[j];
+            }
+            job_count--;
+            return;
+        }
+    }
+}
+
+void print_jobs() {
+    if (job_count == 0) {
+        printf("No background jobs\n");
+        return;
+    }
+    for (int i = 0; i < job_count; i++) {
+        printf("[%d] %d  Running  %s\n", i + 1, job_pids[i], job_cmds[i]);
+    }
+}
+
+// Reap (collect) every finished background child without blocking
+void reap_jobs() {
+    int status;
+    int pid;
+    while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+        remove_job(pid);
+    }
+}
+
 // Feature-5: Separate the redirections from the real arguments.
 // Example: ["sort", "<", "in.txt", ">", "out.txt"]
 //   -> cmd = ["sort"], infile = "in.txt", outfile = "out.txt"
@@ -39,7 +96,8 @@ void setup_redirection(char* infile, char* outfile) {
 }
 
 // Runs one simple command (with optional < and >)
-int run_single(char** arglist) {
+// background = 1 means "don't wait" (the command ended with &)
+int run_single(char** arglist, int background) {
     char* cmd[MAXARGS + 1];
     char *infile, *outfile;
     parse_redirection(arglist, cmd, &infile, &outfile);
@@ -57,7 +115,11 @@ int run_single(char** arglist) {
             perror("Command not found");
             exit(1);
         default: // Parent process
-            waitpid(cpid, &status, 0);
+            if (background) {
+                add_job(cpid, cmd);           // remember it, and DON'T wait
+            } else {
+                waitpid(cpid, &status, 0);    // foreground: wait for it
+            }
             return 0;
     }
 }
@@ -108,25 +170,42 @@ int run_pipe(char** left, char** right) {
 }
 
 int execute(char* arglist[]) {
+    // Feature-6: make a copy of the argument list, without a final "&"
+    char* args[MAXARGS + 1];
+    int n = 0;
+    while (arglist[n] != NULL) {
+        args[n] = arglist[n];
+        n++;
+    }
+    args[n] = NULL;
+
+    int background = 0;
+    if (n > 0 && strcmp(args[n - 1], "&") == 0) {
+        background = 1;
+        args[n - 1] = NULL;      // remove the "&"
+        n--;
+    }
+    if (n == 0) return 0;
+
     // Is there a pipe symbol?
     int p = -1;
-    for (int i = 0; arglist[i] != NULL; i++) {
-        if (strcmp(arglist[i], "|") == 0) {
+    for (int i = 0; args[i] != NULL; i++) {
+        if (strcmp(args[i], "|") == 0) {
             p = i;
             break;
         }
     }
 
     if (p == -1) {
-        return run_single(arglist);
+        return run_single(args, background);
     }
 
     // Split into left part (before |) and right part (after |)
     char* left[MAXARGS + 1];
     for (int i = 0; i < p; i++) {
-        left[i] = arglist[i];
+        left[i] = args[i];
     }
     left[p] = NULL;
-    char** right = &arglist[p + 1];
+    char** right = &args[p + 1];
     return run_pipe(left, right);
 }

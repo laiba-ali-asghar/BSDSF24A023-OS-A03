@@ -18,6 +18,8 @@
 #define ARGLEN 256
 #define PROMPT "FCIT> "
 #define HISTORY_SIZE 20
+#define MAX_JOBS 20
+#define MAX_CMDS 20
 
 // Function prototypes
 char* read_cmd(char* prompt, FILE* fp);
@@ -28,5 +30,7 @@ void add_to_history(char* cmdline);
 void print_history();
 char* get_history(int n);
 void init_readline();
+void reap_jobs();
+void print_jobs();
 
 #endif // SHELL_H

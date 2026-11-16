@@ -36,14 +36,14 @@ char** tokenize(char* cmdline) {
         char token[ARGLEN];
         int len = 0;
 
-        if (*cp == '<' || *cp == '>' || *cp == '|') {
+            if (*cp == '<' || *cp == '>' || *cp == '|' || *cp == '&') {
             // a special symbol is always a token on its own
             token[len++] = *cp;
             cp++;
         } else {
             // a normal word: read until a space or a special symbol
             while (*cp != '\0' && *cp != ' ' && *cp != '\t' &&
-                   *cp != '<' && *cp != '>' && *cp != '|') {
+                *cp != '<' && *cp != '>' && *cp != '|' && *cp != '&') {
                 if (*cp == '"' || *cp == '\'') {
                     // quoted text: copy everything up to the closing quote (quotes removed)
                     char quote = *cp;
@@ -109,7 +109,7 @@ int handle_builtin(char** arglist) {
     }
 
     if (strcmp(cmd, "jobs") == 0) {
-        printf("Job control not yet implemented.\n");
+        print_jobs();
         return 1;
     }
 
