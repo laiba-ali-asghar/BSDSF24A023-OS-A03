@@ -26,37 +26,48 @@ char** tokenize(char* cmdline) {
     }
 
     char** arglist = (char**)malloc(sizeof(char*) * (MAXARGS + 1));
-    for (int i = 0; i < MAXARGS + 1; i++) {
-        arglist[i] = (char*)malloc(sizeof(char) * ARGLEN);
-        bzero(arglist[i], ARGLEN);
-    }
-
-    char* cp = cmdline;
-    char* start;
-    int len;
     int argnum = 0;
+    char* cp = cmdline;
 
     while (*cp != '\0' && argnum < MAXARGS) {
-        while (*cp == ' ' || *cp == '\t') cp++; // Skip leading whitespace
-        
-        if (*cp == '\0') break; // Line was only whitespace
+        while (*cp == ' ' || *cp == '\t') cp++;   // skip spaces
+        if (*cp == '\0') break;
 
-        start = cp;
-        len = 1;
-        while (*++cp != '\0' && !(*cp == ' ' || *cp == '\t')) {
-            len++;
+        char token[ARGLEN];
+        int len = 0;
+
+        if (*cp == '<' || *cp == '>' || *cp == '|') {
+            // a special symbol is always a token on its own
+            token[len++] = *cp;
+            cp++;
+        } else {
+            // a normal word: read until a space or a special symbol
+            while (*cp != '\0' && *cp != ' ' && *cp != '\t' &&
+                   *cp != '<' && *cp != '>' && *cp != '|') {
+                if (*cp == '"' || *cp == '\'') {
+                    // quoted text: copy everything up to the closing quote (quotes removed)
+                    char quote = *cp;
+                    cp++;
+                    while (*cp != '\0' && *cp != quote) {
+                        if (len < ARGLEN - 1) token[len++] = *cp;
+                        cp++;
+                    }
+                    if (*cp == quote) cp++;
+                } else {
+                    if (len < ARGLEN - 1) token[len++] = *cp;
+                    cp++;
+                }
+            }
         }
-        strncpy(arglist[argnum], start, len);
-        arglist[argnum][len] = '\0';
+        token[len] = '\0';
+        arglist[argnum] = strdup(token);
         argnum++;
     }
 
-    if (argnum == 0) { // No arguments were parsed
-        for(int i = 0; i < MAXARGS + 1; i++) free(arglist[i]);
+    if (argnum == 0) {   // line had only spaces
         free(arglist);
         return NULL;
     }
-
     arglist[argnum] = NULL;
     return arglist;
 }
