@@ -115,12 +115,12 @@ int run_single(char** arglist, int background) {
             perror("Command not found");
             exit(1);
         default: // Parent process
-            if (background) {
+                        if (background) {
                 add_job(cpid, cmd);           // remember it, and DON'T wait
-            } else {
-                waitpid(cpid, &status, 0);    // foreground: wait for it
+                return 0;
             }
-            return 0;
+            waitpid(cpid, &status, 0);        // foreground: wait for it
+            return WEXITSTATUS(status);       // Feature-7: the command's exit code
     }
 }
 
@@ -133,7 +133,7 @@ int run_pipe(char** left, char** right) {
     parse_redirection(right, rcmd, &rin, &rout);
     if (lcmd[0] == NULL || rcmd[0] == NULL) {
         printf("Invalid pipe command\n");
-        return 0;
+        return 1;
     }
 
     int fd[2];                 // fd[0] = read end, fd[1] = write end
@@ -164,9 +164,10 @@ int run_pipe(char** left, char** right) {
     // PARENT: must close both ends, otherwise the right child never sees end-of-input
     close(fd[0]);
     close(fd[1]);
+        int status;
     waitpid(pid1, NULL, 0);
-    waitpid(pid2, NULL, 0);
-    return 0;
+    waitpid(pid2, &status, 0);
+    return WEXITSTATUS(status);   // exit code of a pipe = exit code of the right side
 }
 
 int execute(char* arglist[]) {

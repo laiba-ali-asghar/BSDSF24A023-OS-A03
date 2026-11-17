@@ -20,6 +20,7 @@
 #define HISTORY_SIZE 20
 #define MAX_JOBS 20
 #define MAX_CMDS 20
+#define MAX_BLOCK 20
 
 // Function prototypes
 char* read_cmd(char* prompt, FILE* fp);
