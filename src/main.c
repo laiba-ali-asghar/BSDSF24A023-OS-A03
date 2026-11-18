@@ -25,8 +25,12 @@ int run_command(char* cmd) {
     char** arglist = tokenize(cmd);
     if (arglist == NULL) return 0;        // empty command
 
+       expand_variables(arglist);            // Feature-8: $NAME -> value
+
     int status = 0;
-    if (handle_builtin(arglist) == 0) {
+    if (handle_assignment(arglist) == 1) {
+        // Feature-8: it was NAME=value, already stored
+    } else if (handle_builtin(arglist) == 0) {
         status = execute(arglist);
     }
 

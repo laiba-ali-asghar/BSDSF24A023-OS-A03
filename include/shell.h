@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <ctype.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <readline/readline.h>
@@ -33,5 +34,8 @@ char* get_history(int n);
 void init_readline();
 void reap_jobs();
 void print_jobs();
+void expand_variables(char** arglist);
+int handle_assignment(char** arglist);
+void print_variables();
 
 #endif // SHELL_H

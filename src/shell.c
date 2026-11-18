@@ -108,6 +108,11 @@ int handle_builtin(char** arglist) {
         return 1;
     }
 
+        if (strcmp(cmd, "set") == 0) {
+        print_variables();
+        return 1;
+    }
+
     if (strcmp(cmd, "jobs") == 0) {
         print_jobs();
         return 1;
@@ -212,4 +217,84 @@ char** myshell_completion(const char* text, int start, int end) {
 void init_readline() {
     build_command_list();
     rl_attempted_completion_function = myshell_completion;
+}
+
+// Feature-8: Shell variables (stored in a linked list)
+struct variable {
+    char* name;
+    char* value;
+    struct variable* next;
+};
+
+struct variable* var_head = NULL;   // first node of the list
+
+// Find a variable by name. Returns its node, or NULL if not found
+struct variable* find_variable(char* name) {
+    struct variable* v = var_head;
+    while (v != NULL) {
+        if (strcmp(v->name, name) == 0) return v;
+        v = v->next;
+    }
+    return NULL;
+}
+
+// Create a new variable, or change the value of an existing one
+void set_variable(char* name, char* value) {
+    struct variable* v = find_variable(name);
+    if (v != NULL) {                 // already exists: replace the value
+        free(v->value);
+        v->value = strdup(value);
+        return;
+    }
+    // new variable: make a node and add it at the end of the list
+    struct variable* node = malloc(sizeof(struct variable));
+    node->name = strdup(name);
+    node->value = strdup(value);
+    node->next = NULL;
+    if (var_head == NULL) {
+        var_head = node;
+    } else {
+        struct variable* last = var_head;
+        while (last->next != NULL) last = last->next;
+        last->next = node;
+    }
+}
+
+// The "set" built-in: print every variable
+void print_variables() {
+    struct variable* v = var_head;
+    while (v != NULL) {
+        printf("%s=%s\n", v->name, v->value);
+        v = v->next;
+    }
+}
+
+// If the command is NAME=value, store it and return 1. Otherwise return 0.
+int handle_assignment(char** arglist) {
+    if (arglist[1] != NULL) return 0;           // must be one single word
+    char* eq = strchr(arglist[0], '=');         // find the '='
+    if (eq == NULL || eq == arglist[0]) return 0;   // no '=', or nothing before it
+
+    // the name may only contain letters, digits and _ (and not start with a digit)
+    if (arglist[0][0] >= '0' && arglist[0][0] <= '9') return 0;
+    for (char* p = arglist[0]; p < eq; p++) {
+        if (!(isalnum(*p) || *p == '_')) return 0;
+    }
+
+    *eq = '\0';                 // split "MSG=hello" into "MSG" and "hello"
+    set_variable(arglist[0], eq + 1);
+    *eq = '=';                  // put the '=' back
+    return 1;
+}
+
+// Replace every word that starts with $ by the variable's value
+void expand_variables(char** arglist) {
+    for (int i = 0; arglist[i] != NULL; i++) {
+        if (arglist[i][0] == '$' && arglist[i][1] != '\0') {
+            struct variable* v = find_variable(arglist[i] + 1);   // name without the $
+            char* value = (v != NULL) ? v->value : "";            // unknown variable -> empty
+            free(arglist[i]);                  // free the old word "$MSG"
+            arglist[i] = strdup(value);        // new memory for the value
+        }
+    }
 }
